@@ -469,15 +469,15 @@ done < models.txt
 
 ### Best Practices
 
-1. **ALWAYS Validate Extraction**: Use `--dry-run` first and manually verify all extracted scores match the README exactly before pushing
-2. **Check for Transposed Tables**: If the README has comparison tables with multiple models, verify only YOUR model's scores were extracted
-3. **Validate After Updates**: Run `validate` and `show` commands to ensure proper formatting
-4. **Source Attribution**: Include source information for traceability
-5. **Regular Updates**: Keep evaluation scores current as new benchmarks emerge
-6. **Create PRs for Others**: Use `--create-pr` when updating models you don't own
-7. **Monitor Costs**: Evaluation Jobs are billed by usage. Ensure you check running jobs and costs
-8. **One model per repo**: Only add one model's 'results' to the model-index. The main model of the repo. No derivatives or forks!
-9. **Markdown formatting**: Never use markdown formatting in the model name. Use the exact name from the table. Only use urls in the source.url field.
+1. **Always start with `inspect-tables`**: See table structure and get the correct extraction command
+2. **Use `--help` for guidance**: Run `inspect-tables --help` to see the complete workflow
+3. **Use `--dry-run` first**: Preview YAML output before applying changes
+4. **Verify extracted values**: Compare YAML output against the README table manually
+5. **Use `--table N` for multi-table READMEs**: Required when multiple evaluation tables exist
+6. **Use `--model-name-override` for comparison tables**: Copy the exact column header from `inspect-tables` output
+7. **Create PRs for Others**: Use `--create-pr` when updating models you don't own
+8. **One model per repo**: Only add the main model's results to model-index
+9. **No markdown in YAML names**: The model name field in YAML should be plain text
 
 ### Model Name Matching
 
