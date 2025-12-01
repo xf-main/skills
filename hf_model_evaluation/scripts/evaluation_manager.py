@@ -776,6 +776,71 @@ def inspect_tables(repo_id: str) -> None:
 
 
 # ============================================================================
+# Pull Request Management
+# ============================================================================
+
+
+def get_open_prs(repo_id: str) -> List[Dict[str, Any]]:
+    """
+    Fetch open pull requests for a Hugging Face model repository.
+
+    Args:
+        repo_id: Hugging Face model repository ID (e.g., "allenai/Olmo-3-32B-Think")
+
+    Returns:
+        List of open PR dictionaries with num, title, author, and createdAt
+    """
+    requests = require_requests()
+    url = f"https://huggingface.co/api/models/{repo_id}/discussions"
+
+    try:
+        response = requests.get(url, timeout=30, allow_redirects=True)
+        response.raise_for_status()
+
+        data = response.json()
+        discussions = data.get("discussions", [])
+
+        open_prs = [
+            {
+                "num": d["num"],
+                "title": d["title"],
+                "author": d["author"]["name"],
+                "createdAt": d.get("createdAt", "unknown"),
+            }
+            for d in discussions
+            if d.get("status") == "open" and d.get("isPullRequest")
+        ]
+
+        return open_prs
+
+    except requests.RequestException as e:
+        print(f"Error fetching PRs from Hugging Face: {e}")
+        return []
+
+
+def list_open_prs(repo_id: str) -> None:
+    """Display open pull requests for a model repository."""
+    prs = get_open_prs(repo_id)
+
+    print(f"\n{'='*70}")
+    print(f"Open Pull Requests for: {repo_id}")
+    print(f"{'='*70}")
+
+    if not prs:
+        print("\nNo open pull requests found.")
+    else:
+        print(f"\nFound {len(prs)} open PR(s):\n")
+        for pr in prs:
+            print(f"  PR #{pr['num']} - {pr['title']}")
+            print(f"     Author: {pr['author']}")
+            print(f"     Created: {pr['createdAt']}")
+            print(f"     URL: https://huggingface.co/{repo_id}/discussions/{pr['num']}")
+            print()
+
+    print(f"{'='*70}\n")
+
+
+# ============================================================================
 # Method 2: Import from Artificial Analysis
 # ============================================================================
 
@@ -1194,6 +1259,23 @@ Reminder:
     )
     inspect_parser.add_argument("--repo-id", type=str, required=True, help="HF repository ID")
 
+    # Get PRs command
+    prs_parser = subparsers.add_parser(
+        "get-prs",
+        help="List open pull requests for a model repository",
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Check for existing open PRs before creating new ones to avoid duplicates.",
+        epilog=dedent(
+            """\
+            Examples:
+              uv run scripts/evaluation_manager.py get-prs --repo-id "allenai/Olmo-3-32B-Think"
+
+            IMPORTANT: Always run this before using --create-pr to avoid duplicate PRs.
+            """
+        ),
+    )
+    prs_parser.add_argument("--repo-id", type=str, required=True, help="HF repository ID")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -1259,6 +1341,9 @@ Reminder:
 
         elif args.command == "inspect-tables":
             inspect_tables(args.repo_id)
+
+        elif args.command == "get-prs":
+            list_open_prs(args.repo_id)
     except ModuleNotFoundError as exc:
         # Surface dependency hints cleanly when user only needs help output
         print(exc)
