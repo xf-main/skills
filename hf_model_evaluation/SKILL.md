@@ -26,6 +26,24 @@ This skill provides tools to add structured evaluation results to Hugging Face m
 
 # IMPORTANT: Using This Skill
 
+## ⚠️ CRITICAL: Check for Existing PRs Before Creating New Ones
+
+**Before creating ANY pull request with `--create-pr`, you MUST check for existing open PRs:**
+
+```bash
+uv run scripts/evaluation_manager.py get-prs --repo-id "username/model-name"
+```
+
+**If open PRs exist:**
+1. **DO NOT create a new PR** - this creates duplicate work for maintainers
+2. **Warn the user** that open PRs already exist
+3. **Show the user** the existing PR URLs so they can review them
+4. Only proceed if the user explicitly confirms they want to create another PR
+
+This prevents spamming model repositories with duplicate evaluation PRs.
+
+---
+
 **Use `--help` for the latest workflow guidance.** Works with plain Python or `uv run`:
 ```bash
 uv run scripts/evaluation_manager.py --help
@@ -33,9 +51,10 @@ uv run scripts/evaluation_manager.py inspect-tables --help
 uv run scripts/evaluation_manager.py extract-readme --help
 ```
 Key workflow (matches CLI help):
-1) `inspect-tables` → find table numbers/columns  
-2) `extract-readme --table N --dry-run` → preview YAML  
-3) rerun without `--dry-run` to apply (add `--create-pr` to open a PR)
+1) `get-prs` → check for existing open PRs first
+2) `inspect-tables` → find table numbers/columns
+3) `extract-readme --table N --dry-run` → preview YAML
+4) rerun without `--dry-run` to apply (add `--create-pr` to open a PR)
 
 # Core Capabilities
 
@@ -209,6 +228,12 @@ uv run scripts/evaluation_manager.py show --repo-id "username/model-name"
 uv run scripts/evaluation_manager.py validate --repo-id "username/model-name"
 ```
 
+**Check Open PRs (ALWAYS run before --create-pr):**
+```bash
+uv run scripts/evaluation_manager.py get-prs --repo-id "username/model-name"
+```
+Lists all open pull requests for the model repository. Shows PR number, title, author, date, and URL.
+
 **Run Evaluation Job:**
 ```bash
 hf jobs uv run hf_model_evaluation/scripts/inspect_eval_uv.py \
@@ -264,15 +289,16 @@ WARNING: Do not use markdown formatting in the model name. Use the exact name fr
 
 ### Best Practices
 
-1. **Always start with `inspect-tables`**: See table structure and get the correct extraction command
-2. **Use `--help` for guidance**: Run `inspect-tables --help` to see the complete workflow
-3. **Use `--dry-run` first**: Preview YAML output before applying changes
-4. **Verify extracted values**: Compare YAML output against the README table manually
-5. **Use `--table N` for multi-table READMEs**: Required when multiple evaluation tables exist
-6. **Use `--model-name-override` for comparison tables**: Copy the exact column header from `inspect-tables` output
-7. **Create PRs for Others**: Use `--create-pr` when updating models you don't own
-8. **One model per repo**: Only add the main model's results to model-index
-9. **No markdown in YAML names**: The model name field in YAML should be plain text
+1. **Check for existing PRs first**: Run `get-prs` before creating any new PR to avoid duplicates
+2. **Always start with `inspect-tables`**: See table structure and get the correct extraction command
+3. **Use `--help` for guidance**: Run `inspect-tables --help` to see the complete workflow
+4. **Use `--dry-run` first**: Preview YAML output before applying changes
+5. **Verify extracted values**: Compare YAML output against the README table manually
+6. **Use `--table N` for multi-table READMEs**: Required when multiple evaluation tables exist
+7. **Use `--model-name-override` for comparison tables**: Copy the exact column header from `inspect-tables` output
+8. **Create PRs for Others**: Use `--create-pr` when updating models you don't own
+9. **One model per repo**: Only add the main model's results to model-index
+10. **No markdown in YAML names**: The model name field in YAML should be plain text
 
 ### Model Name Matching
 
@@ -299,23 +325,36 @@ This ensures only the correct model's scores are extracted, never unrelated mode
 **Update Your Own Model:**
 ```bash
 # Extract from README and push directly
-python scripts/evaluation_manager.py extract-readme \
+uv run scripts/evaluation_manager.py extract-readme \
   --repo-id "your-username/your-model" \
   --task-type "text-generation"
 ```
 
-**Update Someone Else's Model:**
+**Update Someone Else's Model (Full Workflow):**
 ```bash
-# Create a PR instead of direct push
-python scripts/evaluation_manager.py extract-readme \
+# Step 1: ALWAYS check for existing PRs first
+uv run scripts/evaluation_manager.py get-prs \
+  --repo-id "other-username/their-model"
+
+# Step 2: If NO open PRs exist, proceed with creating one
+uv run scripts/evaluation_manager.py extract-readme \
   --repo-id "other-username/their-model" \
   --create-pr
+
+# If open PRs DO exist:
+# - Warn the user about existing PRs
+# - Show them the PR URLs
+# - Do NOT create a new PR unless user explicitly confirms
 ```
 
 **Import Fresh Benchmarks:**
 ```bash
-# Get latest scores from Artificial Analysis
-python scripts/evaluation_manager.py import-aa \
+# Step 1: Check for existing PRs
+uv run scripts/evaluation_manager.py get-prs \
+  --repo-id "anthropic/claude-sonnet-4"
+
+# Step 2: If no PRs, import from Artificial Analysis
+AA_API_KEY=... uv run scripts/evaluation_manager.py import-aa \
   --creator-slug "anthropic" \
   --model-name "claude-sonnet-4" \
   --repo-id "anthropic/claude-sonnet-4" \
