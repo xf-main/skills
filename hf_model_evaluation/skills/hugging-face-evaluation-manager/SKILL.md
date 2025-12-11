@@ -1,28 +1,49 @@
 ---
 name: hugging-face-evaluation-manager
-description: Add and manage evaluation results in Hugging Face model cards. Supports extracting eval tables from README content and importing scores from Artificial Analysis API. Works with the model-index metadata format.
+description: Add and manage evaluation results in Hugging Face model cards. Supports extracting eval tables from README content, importing scores from Artificial Analysis API, and running custom model evaluations with vLLM/lighteval. Works with the model-index metadata format.
 ---
 
 # Overview
-This skill provides tools to add structured evaluation results to Hugging Face model cards. It supports two primary methods for adding evaluation data: extracting existing evaluation tables from README content and importing benchmark scores from Artificial Analysis.
+This skill provides tools to add structured evaluation results to Hugging Face model cards. It supports multiple methods for adding evaluation data:
+- Extracting existing evaluation tables from README content
+- Importing benchmark scores from Artificial Analysis
+- Running custom model evaluations with vLLM or accelerate backends (lighteval/inspect-ai)
 
 ## Integration with HF Ecosystem
 - **Model Cards**: Updates model-index metadata for leaderboard integration
 - **Artificial Analysis**: Direct API integration for benchmark imports
 - **Papers with Code**: Compatible with their model-index specification
 - **Jobs**: Run evaluations directly on Hugging Face Jobs with `uv` integration
+- **vLLM**: Efficient GPU inference for custom model evaluation
+- **lighteval**: HuggingFace's evaluation library with vLLM/accelerate backends
+- **inspect-ai**: UK AI Safety Institute's evaluation framework
 
 # Version
-1.2.0
+1.3.0
 
 # Dependencies
+
+## Core Dependencies
 - huggingface_hub>=0.26.0
 - markdown-it-py>=3.0.0
 - python-dotenv>=1.2.1
 - pyyaml>=6.0.3
 - requests>=2.32.5
-- inspect-ai>=0.3.0
 - re (built-in)
+
+## Inference Provider Evaluation
+- inspect-ai>=0.3.0
+- inspect-evals
+- openai
+
+## vLLM Custom Model Evaluation (GPU required)
+- lighteval[accelerate,vllm]>=0.6.0
+- vllm>=0.4.0
+- torch>=2.0.0
+- transformers>=4.40.0
+- accelerate>=0.30.0
+
+Note: vLLM dependencies are installed automatically via PEP 723 script headers when using `uv run`.
 
 # IMPORTANT: Using This Skill
 
@@ -80,12 +101,36 @@ Key workflow (matches CLI help):
 - **Validation**: Ensure compliance with Papers with Code specification
 - **Batch Operations**: Process multiple models efficiently
 
-## 4. Run Evaluations on HF Jobs
+## 4. Run Evaluations on HF Jobs (Inference Providers)
 - **Inspect-AI Integration**: Run standard evaluations using the `inspect-ai` library
 - **UV Integration**: Seamlessly run Python scripts with ephemeral dependencies on HF infrastructure
 - **Zero-Config**: No Dockerfiles or Space management required
 - **Hardware Selection**: Configure CPU or GPU hardware for the evaluation job
 - **Secure Execution**: Handles API tokens safely via secrets passed through the CLI
+
+## 5. Run Custom Model Evaluations with vLLM (NEW)
+
+⚠️ **Important:** This approach is only possible on devices with `uv` installed and sufficient GPU memory.
+**Benefits:** No need to use `hf_jobs()` MCP tool, can run scripts directly in terminal
+**When to use:** User working in local device directly  when GPU is available
+
+### Before running the script
+
+- check the script path
+- check uv is installed
+- check gpu is available with `nvidia-smi`
+
+### Running the script
+
+```bash
+uv run scripts/train_sft_example.py
+```
+### Features
+
+- **vLLM Backend**: High-performance GPU inference (5-10x faster than standard HF methods)
+- **lighteval Framework**: HuggingFace's evaluation library with Open LLM Leaderboard tasks
+- **inspect-ai Framework**: UK AI Safety Institute's evaluation library
+- **Standalone or Jobs**: Run locally or submit to HF Jobs infrastructure
 
 # Usage Instructions
 
@@ -195,6 +240,159 @@ python scripts/run_eval_job.py \
   --hardware "t4-small"
 ```
 
+### Method 4: Run Custom Model Evaluation with vLLM
+
+Evaluate custom HuggingFace models directly on GPU using vLLM or accelerate backends. These scripts are **separate from inference provider scripts** and run models locally on the job's hardware.
+
+#### When to Use vLLM Evaluation (vs Inference Providers)
+
+| Feature | vLLM Scripts | Inference Provider Scripts |
+|---------|-------------|---------------------------|
+| Model access | Any HF model | Models with API endpoints |
+| Hardware | Your GPU (or HF Jobs GPU) | Provider's infrastructure |
+| Cost | HF Jobs compute cost | API usage fees |
+| Speed | vLLM optimized | Depends on provider |
+| Offline | Yes (after download) | No |
+
+#### Option A: lighteval with vLLM Backend
+
+lighteval is HuggingFace's evaluation library, supporting Open LLM Leaderboard tasks.
+
+**Standalone (local GPU):**
+```bash
+# Run MMLU 5-shot with vLLM
+python scripts/lighteval_vllm_uv.py \
+  --model meta-llama/Llama-3.2-1B \
+  --tasks "leaderboard|mmlu|5"
+
+# Run multiple tasks
+python scripts/lighteval_vllm_uv.py \
+  --model meta-llama/Llama-3.2-1B \
+  --tasks "leaderboard|mmlu|5,leaderboard|gsm8k|5"
+
+# Use accelerate backend instead of vLLM
+python scripts/lighteval_vllm_uv.py \
+  --model meta-llama/Llama-3.2-1B \
+  --tasks "leaderboard|mmlu|5" \
+  --backend accelerate
+
+# Chat/instruction-tuned models
+python scripts/lighteval_vllm_uv.py \
+  --model meta-llama/Llama-3.2-1B-Instruct \
+  --tasks "leaderboard|mmlu|5" \
+  --use-chat-template
+```
+
+**Via HF Jobs:**
+```bash
+hf jobs uv run scripts/lighteval_vllm_uv.py \
+  --flavor a10g-small \
+  --secrets HF_TOKEN=$HF_TOKEN \
+  -- --model meta-llama/Llama-3.2-1B \
+     --tasks "leaderboard|mmlu|5"
+```
+
+**lighteval Task Format:**
+Tasks use the format `suite|task|num_fewshot`:
+- `leaderboard|mmlu|5` - MMLU with 5-shot
+- `leaderboard|gsm8k|5` - GSM8K with 5-shot
+- `lighteval|hellaswag|0` - HellaSwag zero-shot
+- `leaderboard|arc_challenge|25` - ARC-Challenge with 25-shot
+
+**Finding Available Tasks:**
+The complete list of available lighteval tasks can be found at:
+https://github.com/huggingface/lighteval/blob/main/examples/tasks/all_tasks.txt
+
+This file contains all supported tasks in the format `suite|task|num_fewshot|0` (the trailing `0` is a version flag and can be ignored). Common suites include:
+- `leaderboard` - Open LLM Leaderboard tasks (MMLU, GSM8K, ARC, HellaSwag, etc.)
+- `lighteval` - Additional lighteval tasks
+- `bigbench` - BigBench tasks
+- `original` - Original benchmark tasks
+
+To use a task from the list, extract the `suite|task|num_fewshot` portion (without the trailing `0`) and pass it to the `--tasks` parameter. For example:
+- From file: `leaderboard|mmlu|0` → Use: `leaderboard|mmlu|0` (or change to `5` for 5-shot)
+- From file: `bigbench|abstract_narrative_understanding|0` → Use: `bigbench|abstract_narrative_understanding|0`
+- From file: `lighteval|wmt14:hi-en|0` → Use: `lighteval|wmt14:hi-en|0`
+
+Multiple tasks can be specified as comma-separated values: `--tasks "leaderboard|mmlu|5,leaderboard|gsm8k|5"`
+
+#### Option B: inspect-ai with vLLM Backend
+
+inspect-ai is the UK AI Safety Institute's evaluation framework.
+
+**Standalone (local GPU):**
+```bash
+# Run MMLU with vLLM
+python scripts/inspect_vllm_uv.py \
+  --model meta-llama/Llama-3.2-1B \
+  --task mmlu
+
+# Use HuggingFace Transformers backend
+python scripts/inspect_vllm_uv.py \
+  --model meta-llama/Llama-3.2-1B \
+  --task mmlu \
+  --backend hf
+
+# Multi-GPU with tensor parallelism
+python scripts/inspect_vllm_uv.py \
+  --model meta-llama/Llama-3.2-70B \
+  --task mmlu \
+  --tensor-parallel-size 4
+```
+
+**Via HF Jobs:**
+```bash
+hf jobs uv run scripts/inspect_vllm_uv.py \
+  --flavor a10g-small \
+  --secrets HF_TOKEN=$HF_TOKEN \
+  -- --model meta-llama/Llama-3.2-1B \
+     --task mmlu
+```
+
+**Available inspect-ai Tasks:**
+- `mmlu` - Massive Multitask Language Understanding
+- `gsm8k` - Grade School Math
+- `hellaswag` - Common sense reasoning
+- `arc_challenge` - AI2 Reasoning Challenge
+- `truthfulqa` - TruthfulQA benchmark
+- `winogrande` - Winograd Schema Challenge
+- `humaneval` - Code generation
+
+#### Option C: Python Helper Script
+
+The helper script auto-selects hardware and simplifies job submission:
+
+```bash
+# Auto-detect hardware based on model size
+python scripts/run_vllm_eval_job.py \
+  --model meta-llama/Llama-3.2-1B \
+  --task "leaderboard|mmlu|5" \
+  --framework lighteval
+
+# Explicit hardware selection
+python scripts/run_vllm_eval_job.py \
+  --model meta-llama/Llama-3.2-70B \
+  --task mmlu \
+  --framework inspect \
+  --hardware a100-large \
+  --tensor-parallel-size 4
+
+# Use HF Transformers backend
+python scripts/run_vllm_eval_job.py \
+  --model microsoft/phi-2 \
+  --task mmlu \
+  --framework inspect \
+  --backend hf
+```
+
+**Hardware Recommendations:**
+| Model Size | Recommended Hardware |
+|------------|---------------------|
+| < 3B params | `t4-small` |
+| 3B - 13B | `a10g-small` |
+| 13B - 34B | `a10g-large` |
+| 34B+ | `a100-large` |
+
 ### Commands Reference
 
 **Top-level help and version:**
@@ -241,9 +439,9 @@ uv run scripts/evaluation_manager.py get-prs --repo-id "username/model-name"
 ```
 Lists all open pull requests for the model repository. Shows PR number, title, author, date, and URL.
 
-**Run Evaluation Job:**
+**Run Evaluation Job (Inference Providers):**
 ```bash
-hf jobs uv run hf_model_evaluation/scripts/inspect_eval_uv.py \
+hf jobs uv run scripts/inspect_eval_uv.py \
   --flavor "cpu-basic|t4-small|..." \
   --secret HF_TOKEN=$HF_TOKEN \
   -- --model "model-id" \
@@ -257,6 +455,29 @@ python scripts/run_eval_job.py \
   --model "model-id" \
   --task "task-name" \
   --hardware "cpu-basic|t4-small|..."
+```
+
+**Run vLLM Evaluation (Custom Models):**
+```bash
+# lighteval with vLLM
+hf jobs uv run scripts/lighteval_vllm_uv.py \
+  --flavor "a10g-small" \
+  --secrets HF_TOKEN=$HF_TOKEN \
+  -- --model "model-id" \
+     --tasks "leaderboard|mmlu|5"
+
+# inspect-ai with vLLM
+hf jobs uv run scripts/inspect_vllm_uv.py \
+  --flavor "a10g-small" \
+  --secrets HF_TOKEN=$HF_TOKEN \
+  -- --model "model-id" \
+     --task "mmlu"
+
+# Helper script (auto hardware selection)
+python scripts/run_vllm_eval_job.py \
+  --model "model-id" \
+  --task "leaderboard|mmlu|5" \
+  --framework lighteval
 ```
 
 ### Model-Index Format
@@ -388,6 +609,18 @@ AA_API_KEY=... uv run scripts/evaluation_manager.py import-aa \
 
 **Issue**: "Payment required for hardware"
 - **Solution**: Add a payment method to your Hugging Face account to use non-CPU hardware
+
+**Issue**: "vLLM out of memory" or CUDA OOM
+- **Solution**: Use a larger hardware flavor, reduce `--gpu-memory-utilization`, or use `--tensor-parallel-size` for multi-GPU
+
+**Issue**: "Model architecture not supported by vLLM"
+- **Solution**: Use `--backend hf` (inspect-ai) or `--backend accelerate` (lighteval) for HuggingFace Transformers
+
+**Issue**: "Trust remote code required"
+- **Solution**: Add `--trust-remote-code` flag for models with custom code (e.g., Phi-2, Qwen)
+
+**Issue**: "Chat template not found"
+- **Solution**: Only use `--use-chat-template` for instruction-tuned models that include a chat template
 
 ### Integration Examples
 
