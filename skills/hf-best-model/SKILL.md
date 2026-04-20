@@ -113,9 +113,11 @@ Include proprietary models (GPT-4, Claude, Gemini) if they appear on leaderboard
 
 ### Follow-up
 
-After presenting the table, ask the user: "Would you like to deploy **[top recommended model]** as a HuggingFace Inference Job so you can start using it right away?"
+After presenting the table, ask the user: "Would you like to run **[top recommended model]**?"
 
-If they say yes, use the `huggingface-llm-trainer` skill to set it up.
+If they say yes, ask whether they'd prefer to:
+- **Run locally** — ask about their device if not already known, then give appropriate setup instructions
+- **Run on HF Jobs** — point them to the HF Jobs guide: https://huggingface.co/docs/huggingface_hub/en/guides/jobs
 
 ---
 
