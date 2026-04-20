@@ -15,7 +15,7 @@ description: >
 
 Finds the best models for a task by querying official HF benchmark leaderboards, enriching
 results with model size data, filtering for what fits on the user's device, and returning a
-comparison table with benchmark scores plus how-to-run snippets.
+comparison table with benchmark scores.
 
 ---
 
@@ -111,39 +111,11 @@ Include proprietary models (GPT-4, Claude, Gemini) if they appear on leaderboard
 - Star the top recommended pick with ⭐
 - "On device" values: `Yes (fp16)`, `Q4 only`, `Too large`, `API only`
 
-### How to run
+### Follow-up
 
-After the table, add **## How to run** for the top 2 self-hostable picks:
+After presenting the table, ask the user: "Would you like to deploy **[top recommended model]** as a HuggingFace Inference Job so you can start using it right away?"
 
-````markdown
-## How to run
-
-### ⭐ org/model-7b (recommended)
-
-**Ollama** (easiest — downloads and runs locally):
-```bash
-ollama run qwen2.5:7b
-```
-
-**Transformers** (Python):
-```python
-from transformers import pipeline
-pipe = pipeline("text-generation", model="org/model-7b", device_map="auto")
-print(pipe("Your prompt here", max_new_tokens=256)[0]["generated_text"])
-```
-
-**LM Studio / llama.cpp**: search `model-7b GGUF` at https://huggingface.co/models
-````
-
-**Ollama name mappings** (common):
-- `meta-llama/Llama-3.x-*B` → `llama3.2`, `llama3.3` (match version to name)
-- `mistralai/Mistral-*` → `mistral`
-- `Qwen/Qwen2.5-*` → `qwen2.5`
-- `Qwen/Qwen3-*` → `qwen3`
-- `google/gemma-3-*` → `gemma3`
-- `microsoft/Phi-*` → `phi4`
-- `deepseek-ai/DeepSeek-R1-*` → `deepseek-r1`
-- When unsure: tell the user to check https://ollama.com/search
+If they say yes, use the `huggingface-llm-trainer` skill to set it up.
 
 ---
 
