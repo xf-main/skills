@@ -29,17 +29,12 @@ If device is not mentioned, skip filtering entirely and return the highest-perfo
 
 ### Device → max parameter budget
 
-| Device | fp16 limit | Q4 quantized limit |
-|--------|-----------|-------------------|
-| MacBook / Apple Silicon 8GB | 3B | 7B |
-| MacBook / Apple Silicon 16GB | 7B | 13B |
-| MacBook / Apple Silicon 32GB | 13B | 34B |
-| Apple Silicon 64GB+ | 30B | 72B |
-| RTX 3090 / 4090 (24GB VRAM) | 13B | 34B |
-| RTX 4080 / 3080 Ti (16GB VRAM) | 7B | 13B |
-| RTX 3080 / 4070 (10-12GB VRAM) | 3B | 7B |
-| CPU only / ≤8GB RAM | 1B | 3B |
-| Cloud / no constraint | show all sizes |
+When a device is specified, extract its available memory (unified RAM for Apple Silicon, VRAM for discrete GPUs) and apply:
+
+- **fp16 max params (B)** ≈ memory (GB) ÷ 2
+- **Q4 max params (B)** ≈ memory (GB) × 2
+
+Examples: 16GB → 8B fp16 / 32B Q4 — 24GB VRAM → 12B fp16 / 48B Q4 — 8GB → 4B fp16 / 16B Q4
 
 ---
 
