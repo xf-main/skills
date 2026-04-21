@@ -33,8 +33,8 @@
       "description": "Add and manage evaluation results in Hugging Face model cards. Supports extracting eval tables from README content, importing scores from Artificial Analysis API, and running custom evaluations with vLLM/lighteval."
     },
     {
-      "name": "hf-best-model",
-      "source": "./skills/hf-best-model",
+      "name": "huggingface-best",
+      "source": "./skills/huggingface-best",
       "skills": "./",
       "description": "Find the best AI model for any task by querying Hugging Face leaderboards and benchmarks. Recommends top models based on task type, hardware constraints, and benchmark scores."
     },
